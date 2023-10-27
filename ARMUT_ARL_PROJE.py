@@ -1,27 +1,27 @@
 
 #########################
-# İş Problemi
+# Business Problem
 #########################
 
-# Türkiye’nin en büyük online hizmet platformu olan Armut, hizmet verenler ile hizmet almak isteyenleri buluşturmaktadır.
-# Bilgisayarın veya akıllı telefonunun üzerinden birkaç dokunuşla temizlik, tadilat, nakliyat gibi hizmetlere kolayca
-# ulaşılmasını sağlamaktadır.
-# Hizmet alan kullanıcıları ve bu kullanıcıların almış oldukları servis ve kategorileri içeren veri setini kullanarak
-# Association Rule Learning ile ürün tavsiye sistemi oluşturulmak istenmektedir.
+# Armut, which is Turkey's largest online service platform, brings together service providers and those who want to
+# receive services. It enables easy access to services such as cleaning, renovation, and transportation with just a few
+# touches on a computer or smartphone. An association rule learning-based product recommendation system is desired
+# to be created using the dataset containing users who received services and the categories of services they received.
 
 
 #########################
-# Veri Seti
+# Story of the Dataset
 #########################
-#Veri seti müşterilerin aldıkları servislerden ve bu servislerin kategorilerinden oluşmaktadır.
-# Alınan her hizmetin tarih ve saat bilgisini içermektedir.
+# The dataset consists of the services customers receive and the categories of these services. Date and time of each
+# service received contains information.
 
-# UserId: Müşteri numarası
-# ServiceId: Her kategoriye ait anonimleştirilmiş servislerdir. (Örnek : Temizlik kategorisi altında koltuk yıkama servisi)
-# Bir ServiceId farklı kategoriler altında bulanabilir ve farklı kategoriler altında farklı servisleri ifade eder.
-# (Örnek: CategoryId’si 7 ServiceId’si 4 olan hizmet petek temizliği iken CategoryId’si 2 ServiceId’si 4 olan hizmet mobilya montaj)
-# CategoryId: Anonimleştirilmiş kategorilerdir. (Örnek : Temizlik, nakliyat, tadilat kategorisi)
-# CreateDate: Hizmetin satın alındığı tarih
+# UserId: Customer ID
+# ServiceId: They are anonymized services belonging to each category. (Example: Upholstery washing service under
+# Cleaning category) A ServiceId can be found under different categories and represents different services under
+# different categories. (Example: The service with CategoryId 7 and ServiceId 4 is honeycomb cleaning, while the
+# service with CategoryId 2 and ServiceId 4 is furniture assembly)
+# CategoryId: They are anonymized categories. (Example: Cleaning, transportation, renovation category)
+# CreateDate: The date the service was purchased
 
 import pandas as pd
 pd.set_option('display.max_columns', None)
@@ -33,13 +33,13 @@ from mlxtend.frequent_patterns import apriori, association_rules
 
 
 #########################
-# GÖREV 1: Veriyi Hazırlama
+# TASK 1: Preparing the Data
 #########################
 
-# Adım 1: armut_data.csv dosyasınız okutunuz.
+# Step 1: Read to armut_data.csv file.
 
 
-df_ = pd.read_csv("C:/Users/yasmi/Desktop/recommender_systems/ARL_Project_Armut/armut_data.csv")
+df_ = pd.read_csv("armut_data.csv")
 df = df_.copy()
 df.head
 df.info()
@@ -48,18 +48,20 @@ df.isnull().sum()
 df.shape
 
 
-# Adım 2: ServisID her bir CategoryID özelinde farklı bir hizmeti temsil etmektedir.
-# ServiceID ve CategoryID'yi "_" ile birleştirerek hizmetleri temsil edecek yeni bir değişken oluşturunuz.
+Step 2: ServiceId represents a different service for each CategoryId. Combine ServiceId and CategoryId
+# with "_" to create a new variable to represent the services.
 
 df["Services"] = df["ServiceId"].astype(str) + "_" + df["CategoryId"].astype(str)
 df.head()
 
-# Adım 3: Veri seti hizmetlerin alındığı tarih ve saatten oluşmaktadır, herhangi bir sepet tanımı (fatura vb. ) bulunmamaktadır.
-# Association Rule Learning uygulayabilmek için bir sepet (fatura vb.) tanımı oluşturulması gerekmektedir.
-# Burada sepet tanımı her bir müşterinin aylık aldığı hizmetlerdir. Örneğin; 7256 id'li müşteri 2017'in 8.ayında aldığı 9_4, 46_4 hizmetleri bir sepeti;
-# 2017’in 10.ayında aldığı  9_4, 38_4  hizmetleri başka bir sepeti ifade etmektedir. Sepetleri unique bir ID ile tanımlanması gerekmektedir.
-# Bunun için öncelikle sadece yıl ve ay içeren yeni bir date değişkeni oluşturunuz. UserID ve yeni oluşturduğunuz date değişkenini "_"
-# ile birleştirirek ID adında yeni bir değişkene atayınız.
+Step 3: The dataset consists of services purchased by customers with the date and time of purchase, but there is
+# no basket definition (invoice, etc.). In order to apply Association Rule Learning, a basket definition needs to be
+# created, which represents the services purchased by each customer on a monthly basis. For example, customer with
+# ID 7256 has a basket consisting of services 9_4 and 46_4 purchased in August 2017, and a different basket consisting
+# of services 9_4 and 38_4 purchased in October 2017. The baskets should be identified with a unique ID. To do this,
+# first create a new date variable that only includes the year and month. Then combine UserId and the new date variable
+# using "_" and assign it to a new variable named BasketId.
+
 
 df['CreateDate'] = pd.to_datetime(df['CreateDate'])
 df.info()
@@ -73,13 +75,13 @@ df["BasketId"] = df["UserId"].astype(str) + "_" + df["NewDate"].astype(str)
 df.head()
 
 #########################
-# GÖREV 2: Birliktelik Kuralları Üretiniz
+# TASK 2: Create Association Rules
 #########################
 
-# Adım 1: Aşağıdaki gibi sepet hizmet pivot table’i oluşturunuz.
+#  Step 1: Create a pivot table with BasketId values in rows and Service values in columns.
 
 # Hizmet         0_8  10_9  11_11  12_7  13_11  14_7  15_1  16_8  17_5  18_4..
-# SepetID
+# BasketId
 # 0_2017-08        0     0      0     0      0     0     0     0     0     0..
 # 0_2017-09        0     0      0     0      0     0     0     0     0     0..
 # 0_2018-01        0     0      0     0      0     0     0     0     0     0..
@@ -87,28 +89,28 @@ df.head()
 # 10000_2017-08    0     0      0     0      0     0     0     0     0     0..
 
 
-# Önce BasketId'ye göre kır, sonra Services'lere göre, sepette satın alınmış Service'ten kaç tane var:
-# CategoryId Services'in içinde bu nedenle Services'in count'unu da alabiliriz.
+# First break it down by BasketId, then by Services, how many purchased Services are in the cart:
+# CategoryId is inside Services, so we can also get the count of Services.
 
 
-# unstack: groupby işleminden sonra pivot yapmak için yani "Services" değişkenini sütunlara geçirmek için unstack() fonsiyonunu kullanılır.
-# Eksik değerleri 0, dolularda 1 yazsın istiyoruz.
+# unstack: The unstack() function is used to pivot after the groupby operation, that is, to pass the "Services" variable to columns.
+# We want missing values to be written as 0 and filled values as 1.
 
-# unstack() işleminden sonra boş olan yerleri 0 ile doldurmak için fillna(0) metodunu kullanılır.
+# After the unstack() operation, the fillna(0) method is used to fill the empty spaces with 0.
 
 
-# 0'dan büyük herhangi bir sayıya 1, diğerlerinde 0 yazmalıyız.
-# Çünkü daha ölçülebilir üzerinde analitik işlemler yapabileceğimiz özel bir matris yapısı bekliyoruz.
-# Burada applymap() fonksiyonunu kullanıyoruz. Çünkü, applymap() bütün gözlemleri gezer (satır ve sütunların hepsinde).
+# We should write 1 for any number greater than 0 and 0 for others.
+# Because we expect a special matrix structure that is more measurable and on which we can perform analytical operations.
+# Here we use the applymap() function. Because applymap() traverses all observations (in all rows and columns).
 
 apriori_df = df.groupby(["BasketId", "Services"])["CategoryId"].count().unstack().fillna(0).applymap(lambda x: 1 if x > 0 else 0)
 
 
-# Adım 2: Birliktelik kurallarını oluşturunuz.
+# Step 2: Create association rules.
 
-# İlk olarak apriori() fonksiyonu ile olası tüm ürün birlikteliklerinin Support değerlerini yani olasılıklarını bulalım.
-# Burada min_support, belirlemek istediğimiz minimum Support değeri, threshold
-# Kullanmak istediğimiz veri setindeki değişkenlerin isimlerini kullanmak istiyorsak use_colnames=True eklenir.
+# First, let's find the Support values, or probabilities, of all possible product combinations with the apriori() function.
+# Here min_support is the minimum Support value we want to determine, threshold.
+# If we want to use the names of the variables in the data set we want to use, use_colnames=True is added.
 
 frequent_itemsets = apriori(apriori_df.astype("bool"),
                             min_support=0.01,
@@ -116,15 +118,13 @@ frequent_itemsets = apriori(apriori_df.astype("bool"),
 
 frequent_itemsets.sort_values("support", ascending=False)
 
-# Şu anda elimizde olası Services veya Services çiftleri ve bunlara karşılık support değerleri verilmiş.
-# Burada 0.01'in altındaki olası değerler yok çünkü minimum support değerini(eşik değeri) 0.01 olarak vermiştik.
-# Bunlar her bir hizmetin olasılığıdır. Bizim ihtiyacımız olan birliktelik kurallarıdır. Dolayısıyla bu veriyi kullanıp
-# bunun üzerinden birliktelik kurallarını çıkaracağız.
+# We currently have possible Services or Services pairs and their corresponding support values.
+# There are no possible values below 0.01 here because we gave the minimum support value (threshold value) as 0.01.
+# These are the probabilities of each service. What we need are association rules.
 
 
 
-# İhtiyacımız olan birliktelik kuralları için association_rules() metodu ile
-# bu veriyi kullanıp bunun üzerinden birliktelik kurallarını çıkaracağız:
+# For the association rules we need, we will use this data with the association_rules() method and extract the association rules from it:
 
 rules = association_rules(frequent_itemsets,
                           metric="support",
@@ -132,17 +132,17 @@ rules = association_rules(frequent_itemsets,
 
 rules.head()
 
-# antecedents: Önceki Hizmet
-# consequents: İkinci Hizmet
-# antecedent support: İlk Hizmetin tek başına gözlenme olasılığı
-# consequent support: İkinci Hizmetin tek başına gözlenme olasılığı
-# support: İki Hizmetin birlikte görülme olasılığı
-# confidence: İlk hizmet alındığında  ikinci Hizmetin alınma olasılığı
-# lift: Bir Hizmet alındığında ikinci Hizmetin alınma olasılığının kaç kat artacağının belirtir.
-# leverage: lift benzeridir. Support u yüksek olan değerlere öncelik verme eğilimindedir bundan dolayı ufak bir yanlılığı vardır.
-# conviction: Bir Hizmet olmadan diğer Hizmetin beklenen frakansı
+# antecedents: Previous Service
+#consequences: Second Service
+# antecedent support: Probability of observing First Service alone
+# consequent support: Probability of observing the Second Service alone
+# support: Possibility of two Services appearing together
+# confidence: The probability of receiving the second service when the first service is received
+# lift: Indicates how many times the probability of receiving a second Service increases when one Service is purchased.
+# leverage: similar to lift. It tends to prioritize values with high support, so it has a slight bias.
+# conviction: Expected frequency of one Service without another
 
-#Adım 3: arl_recommender fonksiyonunu kullanarak en son 2_0 hizmetini alan bir kullanıcıya hizmet önerisinde bulununuz.
+# Step 3: Step 6: Using the arl_recommender function, recommend a service to a user who has received the last
 
 def arl_recommender(rules_df, service_id, rec_num=1):
     sorted_rules = rules_df.sort_values("lift", ascending=False)
@@ -154,17 +154,17 @@ def arl_recommender(rules_df, service_id, rec_num=1):
     return recommendation_list[0:rec_num]
 
 
-# service_id: Öneri yapılmasını istediğimiz service id'si.
-# rec_num: İstenen sayıda tavsiye hizmeti getirir.
-# İlk olarak en uyumlu ilk ürünü yakalayabilmek için kuralları lifte göre büyükten kücüğe sıraladık.
-# (Bu sıralama tercihe göre confidence'e göre de olabilir.)
-# Tavsiye edilecek ürünler için boş bir liste oluşturulur.
-# Sıralanmış kurallarda ilk önce gelen service göre enumerate() metodunu kullanıyoruz.
-# İkinci döngüde service'lerde gezilecek. Eğer tavsiye istenen hizmet yakalanırsa,
-# index bilgisi i ile tutuluyordu bu index bilgisindeki consequents değerini recommendation_list'e ekler.
-# [0] ilk gördüğü hizmeti getirmesi için eklenir.
+# service_id: The service id for which we want to make a recommendation.
+# rec_num: Returns the desired number of recommendation services.
+# First of all, we listed the rules from largest to smallest according to fiber in order to capture the first most compatible product.
+# (This order may also be based on confidence, depending on preference.)
+# An empty list is created for the products to be recommended.
+# We use the enumerate() method according to the service that comes first in the sorted rules.
+# In the second loop, the services will be browsed. If the service for which advice is requested is caught,
+# The index information was kept by i. This adds the consequents value in the index information to the recommendation_list.
+# [0] is added to bring the first service it sees.
 
 arl_recommender(rules,"2_0",3)
 df.head
 
-# Not: Önerilen hizmet sayısı arttıkça diğer denk gelen hizmetlerin ilgili istatistiklerdeki değerleri daha düşük olacaktır.
+# Note: As the number of recommended services increases, the values of other corresponding services in the relevant statistics will be lower.
